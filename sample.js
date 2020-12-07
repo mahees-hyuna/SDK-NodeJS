@@ -1,6 +1,7 @@
 const http = require('http'); // Import Node.js core module
 const qs = require('querystring');
 
+const axios = require('axios');
 const crypto = require('crypto');
 const httpBuildQuery = require('http-build-query');
 const url = require('url');
@@ -29,7 +30,7 @@ var server = http.createServer(function (req, res) {
 			if (body.length > 1e6) request.connection.destroy();
 		});
 
-		req.on('end', function () {
+		req.on('end', async function () {
 			var post = qs.parse(body);
 
 			if (getParams['acs']) {
@@ -58,9 +59,25 @@ var server = http.createServer(function (req, res) {
 					sendResponse(body, res);
 				});
 			} else {
+				const transactionId = 123456786543;
 				// Browser info present, but no threeDSResponse, this means it's
 				// the initial request to the gateway (not 3DS) server.
-				let fields = getInitialFields('https://node.test/any?sid=101', '88.77.66.55');
+				let fields = getInitialFields(
+					`https://px9564gtzf.execute-api.us-east-1.amazonaws.com/Prod/api/acs/acs-response?acs=1&transactionId=${transactionId}`,
+					'88.77.66.55'
+				);
+
+				const { data: getACSData } = await axios.get(
+					`https://px9564gtzf.execute-api.us-east-1.amazonaws.com/Prod/api/acs/get-acs-response?transactionId=${transactionId}`,
+					{
+						headers: {
+							'Content-Type': 'application/json',
+							'Access-Control-Allow-Origin': '*',
+						},
+					}
+				);
+				console.log(getACSData);
+				//let fields = getInitialFields("https://node.test/any?sid=101", "88.77.66.55");
 
 				for ([k, v] of Object.entries(post)) {
 					if (k.startsWith('browserInfo[')) {

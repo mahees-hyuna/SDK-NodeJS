@@ -32,7 +32,7 @@ fields['browserInfo[deviceIdentity]'].value = identity;
 fields['browserInfo[deviceTimeZone]'].value = timezone;
 fields['browserInfo[deviceCapabilities]'].value = 'javascript' + (java ? ',java' : '');
 fields['browserInfo[deviceAcceptLanguage]'].value = language;
-fields['browserInfo[deviceScreenResolution]'].value = screen_width + 'x' + screen_height + 'x' + screen_depth;
+fields['browserInfo[deviceScreenResolution]'].value = screen_width + 'x' + screen_height + 'x' + 1;
 window.setTimeout('document.forms.collectBrowserInfo.submit()', 0);
 </script>
 `;
