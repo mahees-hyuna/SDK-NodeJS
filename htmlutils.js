@@ -1,14 +1,13 @@
-exports.collectBrowserInfo = function(req) {
+exports.collectBrowserInfo = function (req) {
+	const Entities = require('html-entities').Html5Entities;
+	const entities = new Entities();
 
-  const Entities = require('html-entities').Html5Entities
-  const entities = new Entities();
+	http_user_agent = entities.encode(req.headers['user-agent']);
+	http_accept = entities.encode(req.headers['accept']);
+	http_accept_encoding = entities.encode(req.headers['accept-encoding']);
+	http_accept_language = entities.encode(req.headers['accept-language']);
 
-  http_user_agent = entities.encode(req.headers['user-agent']);
-  http_accept = entities.encode(req.headers['accept']);
-  http_accept_encoding = entities.encode(req.headers['accept-encoding']);
-  http_accept_language = entities.encode(req.headers['accept-language']);
-
-  return (`
+	return `
          <form id="collectBrowserInfo" method="post" action="?">
 <input type="hidden" name="browserInfo[deviceChannel]" value="browser" />
 <input type="hidden" name="browserInfo[deviceIdentity]" value="${http_user_agent}" />
@@ -36,77 +35,83 @@ fields['browserInfo[deviceAcceptLanguage]'].value = language;
 fields['browserInfo[deviceScreenResolution]'].value = screen_width + 'x' + screen_height + 'x' + screen_depth;
 window.setTimeout('document.forms.collectBrowserInfo.submit()', 0);
 </script>
-`);
-}
+`;
+};
 
+exports.getPageUrl = function (req) {
+	// WARNING - THIS CODE WILL DEPEND ON YOUR DEPLOYMENT CONFIGURATION
+	// This is providing the URL that's used in the html for the form, so it needs to be correct for
+	// the public/external view of your application, the other side of any reverse proxy.
 
-exports.getPageUrl = function(req) {
-    // WARNING - THIS CODE WILL DEPEND ON YOUR DEPLOYMENT CONFIGURATION
-    // This is providing the URL that's used in the html for the form, so it needs to be correct for
-    // the public/external view of your application, the other side of any reverse proxy.
+	// HTTP_X_FORWARDED_SERVER is provided by Apache when acting as reverse proxy. This is correct for rackup and Apache.
 
-    // HTTP_X_FORWARDED_SERVER is provided by Apache when acting as reverse proxy. This is correct for rackup and Apache.
+	console.log(req.headers);
+	console.log(req.url);
 
-    console.log(req.headers);
-    console.log(req.url);
+	if (req.headers['x-forwarded-server']) {
+		return (
+			'https://' +
+			req.headers['x-forwarded-server'] + // Assume default port.
+			req.url.replace(/acs=1&/, '')
+		);
+	}
 
-    if (req.headers['x-forwarded-server']) {
-      return "https://" + req.headers["x-forwarded-server"] + // Assume default port.
-      req.url.replace(/acs=1&/, "")
-    }
-    
-    //let [host, port] = 
+	//let [host, port] =
 
-    return (req.headers["SERVER_PORT"] == "443" ? "https://" : "https://") +
-    req.headers["SERVER_NAME"] +
-             (req.headers["SERVER_PORT"] != "80" ? ":" + req.headers["SERVER_PORT"] : "") +
-             req.headers["REQUEST_URI"].replace(/acs=1&?/, "")
-}
+	return (
+		(req.headers['SERVER_PORT'] == '443' ? 'https://' : 'https://') +
+		req.headers['SERVER_NAME'] +
+		(req.headers['SERVER_PORT'] != '80' ? ':' + req.headers['SERVER_PORT'] : '') +
+		req.headers['REQUEST_URI'].replace(/acs=1&?/, '')
+	);
+};
 
-
-exports.getWrapHTML = function(content) {
-  return `<!DOCTYPE html>
+exports.getWrapHTML = function (content) {
+	return (
+		`<!DOCTYPE html>
 <html>
   <head>
     <meta charset="UTF-8" />
   </head>
-  <body>` + "\n\n" + content +
-    `  </body>
-</html>`;
-}
+  <body>` +
+		'\n\n' +
+		content +
+		`  </body>
+</html>`
+	);
+};
 
 exports.showFrameForThreeDS = function (responseFields) {
-  // Send a request to the ACS server by POSTing a form with the target set as the IFrame.
+	// Send a request to the ACS server by POSTing a form with the target set as the IFrame.
 
-  // The form is hidden for threeDSMethodData requests (frictionless) and visible when the ACS
-  // server may show a challenge to the user.
+	// The form is hidden for threeDSMethodData requests (frictionless) and visible when the ACS
+	// server may show a challenge to the user.
 
-  style = responseFields["threeDSRequest[threeDSMethodData]"] ? "display: none;" : ""
+	style = responseFields['threeDSRequest[threeDSMethodData]'] ? 'display: none;' : '';
 
-  rtn = "<iframe name=\"threeds_acs\" style=\"height:420px; width:420px; #{style}\"></iframe>\n\n"
+	rtn = '<iframe name="threeds_acs" style="height:420px; width:420px; #{style}"></iframe>\n\n';
 
+	// We could extract each key by name, however in the interests of facilitating forward
+	// compatibility, we pass through every field in the threeDSRequest array.
+	formField = {};
+	for ([k, v] of Object.entries(responseFields)) {
+		if (k.startsWith('threeDSRequest[') && k.endsWith(']')) {
+			let formKey = k.substr(15, k.length - 16);
+			formField[formKey] = v;
+		}
+	}
 
-  // We could extract each key by name, however in the interests of facilitating forward 
-  // compatibility, we pass through every field in the threeDSRequest array. 
-  formField = {}
-  for ([k, v] of Object.entries(responseFields)) {
-    if (k.startsWith('threeDSRequest[') && k.endsWith(']')) {
-      let formKey = k.substr(15, k.length - 16);
-      formField[formKey] = v;
-    }
-  }
-
-  return rtn + silentPost(responseFields["threeDSURL"], formField, "threeds_acs");
-}
+	return rtn + silentPost(responseFields['threeDSURL'], formField, 'threeds_acs');
+};
 
 // TODO copied from the other one!
-silentPost = function(url, fields, target = "_self") {
-  fieldsStr = ""
-  for ([k, v] of Object.entries(fields)) {
-    fieldsStr += `<input type="hidden" name="${k}" value="${v}" /> \n`;
-  }
+silentPost = function (url, fields, target = '_self') {
+	fieldsStr = '';
+	for ([k, v] of Object.entries(fields)) {
+		fieldsStr += `<input type="hidden" name="${k}" value="${v}" /> \n`;
+	}
 
-  return `
+	return `
          <form id="silentPost" action="${url}" method="post" target="${target}">
           ${fieldsStr}
          <noscript><input type="submit" value="Continue"></noscript>
@@ -114,5 +119,5 @@ silentPost = function(url, fields, target = "_self") {
          <script>
            window.setTimeout('document.forms.silentPost.submit()', 0);
          </script>
-       `
-}
+       `;
+};

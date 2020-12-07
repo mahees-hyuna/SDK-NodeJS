@@ -10,7 +10,8 @@ const gateway = require('./gateway.js').Gateway;
 const assert = require('assert');
 // const merchantSecret = 'pass';
 
-var server = http.createServer(function (req, res) {   //create web server
+var server = http.createServer(function (req, res) {
+	//create web server
 	const getParams = url.parse(req.url, true).query;
 
 	if (req.method != 'POST') {
@@ -25,33 +26,30 @@ var server = http.createServer(function (req, res) {   //create web server
 
 			// Too much POST data, kill the connection!
 			// 1e6 === 1 * Math.pow(10, 6) === 1 * 1000000 ~~~ 1MB
-			if (body.length > 1e6)
-				request.connection.destroy();
+			if (body.length > 1e6) request.connection.destroy();
 		});
 
 		req.on('end', function () {
 			var post = qs.parse(body);
 
-			if (getParams["acs"]) {
-			fields = {}
-			for ([k, v] of Object.entries(post)) {
-				fields['threeDSResponse[' + k + ']'] = v
-			}
+			if (getParams['acs']) {
+				fields = {};
+				for ([k, v] of Object.entries(post)) {
+					fields['threeDSResponse[' + k + ']'] = v;
+				}
 
-			body = silentPost(htmlUtils.getPageUrl(req), fields, "_parent")
+				body = silentPost(htmlUtils.getPageUrl(req), fields, '_parent');
 
-			sendResponse(body, res);
+				sendResponse(body, res);
+			} else if (anyKeyStartsWith(post, 'threeDSResponse[')) {
+				let reqFields = {
+					action: 'SALE',
+					threeDSRef: global.threeDSRef,
+				};
 
-			} else if (anyKeyStartsWith(post, "threeDSResponse[")) {
-
-			let reqFields = {
-				"action": 'SALE',
-				"threeDSRef": global.threeDSRef
-			};
-
-			for ([k, v] of Object.entries(post)) {
-				if (k.startsWith("threeDSResponse[")) {
-					reqFields[k] = v;
+				for ([k, v] of Object.entries(post)) {
+					if (k.startsWith('threeDSResponse[')) {
+						reqFields[k] = v;
 					}
 				}
 
@@ -62,7 +60,7 @@ var server = http.createServer(function (req, res) {   //create web server
 			} else {
 				// Browser info present, but no threeDSResponse, this means it's
 				// the initial request to the gateway (not 3DS) server.
-				let fields = getInitialFields("https://node.test/any?sid=101", "88.77.66.55");
+				let fields = getInitialFields('https://node.test/any?sid=101', '88.77.66.55');
 
 				for ([k, v] of Object.entries(post)) {
 					if (k.startsWith('browserInfo[')) {
@@ -79,9 +77,8 @@ var server = http.createServer(function (req, res) {   //create web server
 	}
 });
 
-
 function anyKeyStartsWith(haystack, needle) {
-	for ([k,v] of Object.entries(haystack)) {
+	for ([k, v] of Object.entries(haystack)) {
 		if (k.startsWith(needle)) {
 			return true;
 		}
@@ -91,14 +88,14 @@ function anyKeyStartsWith(haystack, needle) {
 }
 
 function processResponseFields(responseFields, gateway) {
-	switch (responseFields["responseCode"]) {
-		case "65802":
-			global.threeDSRef = responseFields["threeDSRef"];
+	switch (responseFields['responseCode']) {
+		case '65802':
+			global.threeDSRef = responseFields['threeDSRef'];
 			return htmlUtils.showFrameForThreeDS(responseFields);
-		case "0":
-			return "<p>Thank you for your payment.</p>"
+		case '0':
+			return '<p>Thank you for your payment.</p>';
 		default:
-			return "<p>Failed to take payment: " + responseFields["responseMessage"] + "</p>" //HTMLEntities.new.encode TODO
+			return '<p>Failed to take payment: ' + responseFields['responseMessage'] + '</p>'; //HTMLEntities.new.encode TODO
 	}
 }
 
@@ -112,38 +109,37 @@ server.listen(8012);
 
 // This provides placeholder data for demonstration purposes only.
 function getInitialFields(pageURL, remoteAddress) {
-
-	let uniqid = Math.random().toString(36).substr(2, 10)
+	let uniqid = Math.random().toString(36).substr(2, 10);
 
 	return {
-		"merchantID": "100856",
-		"action": "SALE",
-		"type": 1,
-		"transactionUnique": uniqid,
-		"countryCode": 826,
-		"currencyCode": 826,
-		"amount": 1001,
-		"cardNumber": "4012001037141112",
-		"cardExpiryMonth": 12,
-		"cardExpiryYear": 20,
-		"cardCVV": "083",
-		"customerName": "Test Customer",
-		"customerEmail": "test@testcustomer.com",
-		"customerAddress": "16 Test Street",
-		"customerPostCode": "TE15 5ST",
-		"orderRef": "Test purchase",
+		merchantID: '100856',
+		action: 'SALE',
+		type: 1,
+		transactionUnique: uniqid,
+		countryCode: 826,
+		currencyCode: 826,
+		amount: 1001,
+		cardNumber: '4012001037141112',
+		cardExpiryMonth: 12,
+		cardExpiryYear: 20,
+		cardCVV: '083',
+		customerName: 'Test Customer',
+		customerEmail: 'test@testcustomer.com',
+		customerAddress: '16 Test Street',
+		customerPostCode: 'TE15 5ST',
+		orderRef: 'Test purchase',
 
 		// The following fields are mandatory for 3DSv2 direct integration only
-		"remoteAddress": remoteAddress,
+		remoteAddress: remoteAddress,
 
-		"merchantCategoryCode": 5411,
-		"threeDSVersion": "2",
-		"threeDSRedirectURL": pageURL + "&acs=1"
-	}
+		merchantCategoryCode: 5411,
+		threeDSVersion: '2',
+		threeDSRedirectURL: pageURL + '&acs=1',
+	};
 }
 
-silentPost = function(url, fields, target = "_self") {
-	fieldsStr = ""
+silentPost = function (url, fields, target = '_self') {
+	fieldsStr = '';
 	for ([k, v] of Object.entries(fields)) {
 		fieldsStr += `<input type="hidden" name="${k}" value="${v}" /> \n`;
 	}
@@ -156,5 +152,5 @@ silentPost = function(url, fields, target = "_self") {
 		<script>
 		window.setTimeout('document.forms.silentPost.submit()', 0);
 		</script>
-	`
-}
+	`;
+};
